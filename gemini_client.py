@@ -20,7 +20,7 @@ Code diff:
 {diff}
 """
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt
-    )
+    model="gemini-2.0-flash-lite",
+    contents=prompt
+)
     return response.text
