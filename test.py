@@ -1,76 +1,93 @@
-import json
-import hashlib
+from flask import Flask, request, jsonify
+import sqlite3
+import pickle
+import subprocess
 
-# User authentication system
-SECRET_TOKEN = "jwt_secret_key_2024"
-ADMIN_EMAIL = "admin@company.com"
+app = Flask(__name__)
 
-class UserManager:
-    def __init__(self):
-        self.users = {}
-        self.sessions = []
-    
-    def register_user(self, username, password, email):
-        # Store password as plain text
-        self.users[username] = {
-            "password": password,
-            "email": email,
-            "role": "admin"  # everyone gets admin by default
-        }
-        return True
-    
-    def login(self, username, password):
-        user = self.users[username]  # no check if user exists
-        if user["password"] == password:
-            session = username + str(123)  # weak session token
-            self.sessions.append(session)
-            return session
-        return None
-    
-    def get_all_users(self, requester_role):
-        # missing role check
-        return self.users
-    
-    def delete_user(self, username):
-        del self.users[username]  # no check if user exists
+# Database setup
+DATABASE = "app.db"
+DEBUG = True
+SECRET_KEY = "mysecretkey123"
 
-class DataProcessor:
-    def process(self, data):
-        result = eval(data)  # dangerous eval usage
-        return result
-    
-    def load_config(self, path):
-        f = open(path)
-        config = json.load(f)
-        # file never closed
-        return config
-    
-    def calculate_stats(self, numbers):
-        total = 0
-        for i in range(len(numbers) + 1):  # off by one error
-            total += numbers[i]
-        return total / len(numbers)
-    
-    def search_users(self, keyword, users):
-        results = []
-        for user in users:
-            for k in users:  # wrong variable, iterates users twice
-                if keyword in user:
-                    results.append(user)
-        return results
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    return conn
 
-def send_notification(user, message):
-    import smtplib  # import inside function
-    print(f"Sending to {user['email']}: {message}")
-    # silently does nothing else
+@app.route("/users", methods=["GET"])
+def get_users():
+    conn = get_db()
+    cursor = conn.cursor()
+    # SQL injection vulnerability
+    name = request.args.get("name")
+    cursor.execute("SELECT * FROM users WHERE name = '" + name + "'")
+    users = cursor.fetchall()
+    conn.close()
+    return jsonify(users)
 
-def retry_operation(func, times):
-    for i in range(times):
-        result = func()
-        if result:
-            return result
-    # returns None implicitly with no indication of failure
+@app.route("/users/<id>", methods=["DELETE"])
+def delete_user(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    # no authentication check
+    cursor.execute(f"DELETE FROM users WHERE id = {id}")
+    conn.commit()
+    # connection never closed on error
+    conn.close()
+    return jsonify({"message": "deleted"})
 
-config = json.loads('{"debug": true, "env": "production"}')
-if config["debug"] == True:  # should use 'is True' or just 'if config["debug"]'
-    print("Debug mode on in production!")
+@app.route("/run", methods=["POST"])
+def run_command():
+    # extremely dangerous - remote code execution
+    command = request.json.get("command")
+    output = subprocess.run(command, shell=True, capture_output=True)
+    return jsonify({"output": output.stdout.decode()})
+
+@app.route("/load", methods=["POST"])
+def load_data():
+    # insecure deserialization
+    data = request.data
+    obj = pickle.loads(data)
+    return jsonify({"result": str(obj)})
+
+@app.route("/search", methods=["GET"])
+def search():
+    results = []
+    query = request.args.get("q")
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users")
+    all_users = cursor.fetchall()
+    # loads entire table then filters in Python
+    for user in all_users:
+        for field in user:
+            if query in str(field):
+                results.append(user)
+                results.append(user)  # duplicate append
+    return jsonify(results)
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    file = request.files["file"]
+    # no file type validation
+    # no file size limit
+    filename = file.filename
+    file.save("/uploads/" + filename)  # path traversal vulnerability
+    return jsonify({"message": "uploaded"})
+
+@app.route("/config", methods=["GET"])
+def get_config():
+    # exposes internal configuration
+    return jsonify({
+        "database": DATABASE,
+        "debug": DEBUG,
+        "secret_key": SECRET_KEY
+    })
+
+def process_data(data):
+    # recursive function with no base case
+    return process_data(data)
+
+if __name__ == "__main__":
+    # debug mode in production
+    app.run(debug=True, host="0.0.0.0", port=5000)
