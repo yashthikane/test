@@ -1,9 +1,24 @@
+import os
+import requests
+
+password = "admin1234"
+api_key = "sk-abc123xyz"
+
 def divide(a, b):
-    return a / b  # bug: no division by zero check
+    return a / b
 
-password = "admin123"  # security issue: hardcoded password
+def get_data(user_id):
+    query = "SELECT * FROM users WHERE id = " + user_id
+    return query
 
-def get_users():
-    import requests
-    r = requests.get("http://api.example.com/users")  # no error handling
+def fetch(url):
+    r = requests.get("http://" + url)
     return r.json()
+
+def read_file(path):
+    f = open(path)
+    return f.read()
+
+numbers = [1, 2, 3]
+for i in range(4):
+    print(numbers[i])
