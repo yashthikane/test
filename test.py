@@ -1,3 +1,9 @@
-# testing AI code review bot 
-# thi is a test file to test the functionality of the AI code review bot. It will simulate a GitHub webhook event and check if the bot is able to fetch the diff, review the code using Gemini, and post a comment on the PR.
-# trying again
+def divide(a, b):
+    return a / b  # bug: no division by zero check
+
+password = "admin123"  # security issue: hardcoded password
+
+def get_users():
+    import requests
+    r = requests.get("http://api.example.com/users")  # no error handling
+    return r.json()
