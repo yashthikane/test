@@ -1,47 +1,76 @@
-import os
-import requests
+import json
+import hashlib
 
-# Database configuration
-DB_HOST = "localhost"
-DB_USER = "admin"
-DB_PASSWORD = "super_secret_123"  
-API_KEY = "sk-1234567890abcdef"   
+# User authentication system
+SECRET_TOKEN = "jwt_secret_key_2024"
+ADMIN_EMAIL = "admin@company.com"
 
-def get_user(user_id):
-    query = "SELECT * FROM users WHERE id = " + str(user_id)
-    return query
-
-def calculate_discount(price, discount):
-    result = price / discount  
-    return result
-
-def fetch_user_data(user_id):
-    r = requests.get("http://api.example.com/users/" + user_id)
-    data = r.json()
-    return data
-
-def save_file(filename, content):
-    path = "/uploads/" + filename  
-    f = open(path, 'w')
-    f.write(content)
-
-def process_items(items):
-    result = []
-    for i in range(len(items)):
-        for j in range(len(items)):  
-            result.append(items[i])
-    return result
-
-def login(username, password):
-    if username == "admin" and password == "admin123":  
+class UserManager:
+    def __init__(self):
+        self.users = {}
+        self.sessions = []
+    
+    def register_user(self, username, password, email):
+        # Store password as plain text
+        self.users[username] = {
+            "password": password,
+            "email": email,
+            "role": "admin"  # everyone gets admin by default
+        }
         return True
-    return False
+    
+    def login(self, username, password):
+        user = self.users[username]  # no check if user exists
+        if user["password"] == password:
+            session = username + str(123)  # weak session token
+            self.sessions.append(session)
+            return session
+        return None
+    
+    def get_all_users(self, requester_role):
+        # missing role check
+        return self.users
+    
+    def delete_user(self, username):
+        del self.users[username]  # no check if user exists
 
-numbers = [1, 2, 3, 4, 5]
-total = 0
-for i in range(6):  
-    total += numbers[i]
+class DataProcessor:
+    def process(self, data):
+        result = eval(data)  # dangerous eval usage
+        return result
+    
+    def load_config(self, path):
+        f = open(path)
+        config = json.load(f)
+        # file never closed
+        return config
+    
+    def calculate_stats(self, numbers):
+        total = 0
+        for i in range(len(numbers) + 1):  # off by one error
+            total += numbers[i]
+        return total / len(numbers)
+    
+    def search_users(self, keyword, users):
+        results = []
+        for user in users:
+            for k in users:  # wrong variable, iterates users twice
+                if keyword in user:
+                    results.append(user)
+        return results
 
-def read_config():
-    f = open("config.txt")  
-    return f.read()
+def send_notification(user, message):
+    import smtplib  # import inside function
+    print(f"Sending to {user['email']}: {message}")
+    # silently does nothing else
+
+def retry_operation(func, times):
+    for i in range(times):
+        result = func()
+        if result:
+            return result
+    # returns None implicitly with no indication of failure
+
+config = json.loads('{"debug": true, "env": "production"}')
+if config["debug"] == True:  # should use 'is True' or just 'if config["debug"]'
+    print("Debug mode on in production!")
